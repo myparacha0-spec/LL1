@@ -1,114 +1,260 @@
-export type ResourceCategory =
-  | "Know Your Rights"
-  | "Guides"
-  | "Templates"
-  | "Financial";
+import { createClient } from "@/lib/supabase/server";
+
+export interface ResourceCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  created_at: string;
+}
 
 export interface LegalResource {
   id: string;
+  category_id: string;
   title: string;
-  category: ResourceCategory;
-  readingTime: string;
+  slug: string;
   summary: string;
-  updated: string;
+  content: string;
+  law_name: string | null;
+  section_reference: string | null;
+  jurisdiction: string;
+  keywords: string[];
+  source_name: string;
+  source_url: string;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+  category?: ResourceCategory | null;
 }
 
-export const resources: LegalResource[] = [
-  {
-    id: "know-your-rights-detention",
-    title: "Know Your Rights: Police Detention",
-    category: "Know Your Rights",
-    readingTime: "6 min read",
-    summary:
-      "What police can and cannot do when detaining you, what to say, and how to exercise your right to counsel from the first hour.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "understand-an-employment-contract",
-    title: "How to Read an Employment Contract",
-    category: "Guides",
-    readingTime: "9 min read",
-    summary:
-      "A plain-language walkthrough of clauses that matter: notice period, non-compete, confidentiality, and termination rights.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "tenancy-agreement-checklist",
-    title: "Tenancy Agreement Checklist",
-    category: "Templates",
-    readingTime: "4 min read",
-    summary:
-      "Five things to verify in every rental agreement, plus the clauses you should never agree to sign without changes.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "consumer-complaint-process",
-    title: "The Consumer Complaint Process, Explained",
-    category: "Guides",
-    readingTime: "7 min read",
-    summary:
-      "From the initial complaint to a hearing: how provincial consumer courts work and what evidence you should keep.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "intellectual-property-basics",
-    title: "Intellectual Property Basics for Creators",
-    category: "Know Your Rights",
-    readingTime: "8 min read",
-    summary:
-      "Trademarks, copyright, and design rights in plain language — what is automatically protected and what you need to register.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "family-law-basics",
-    title: "Family Law Basics: Custody and Support",
-    category: "Guides",
-    readingTime: "10 min read",
-    summary:
-      "A compassionate overview of custody arrangements, child support, and the documentation courts expect.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "bail-understanding-process",
-    title: "Understanding the Bail Process",
-    category: "Know Your Rights",
-    readingTime: "6 min read",
-    summary:
-      "Pre-arrest and post-arrest bail explained, including what factors courts weigh and how a lawyer builds the application.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "debt-recovery-letter-template",
-    title: "Demand Letter Template for Unpaid Debts",
-    category: "Templates",
-    readingTime: "3 min read",
-    summary:
-      "A ready-to-adapt formal demand letter that documents the claim before you escalate to a lawyer or court.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "estate-planning-checklist",
-    title: "First Steps to Estate Planning",
-    category: "Templates",
-    readingTime: "5 min read",
-    summary:
-      "Who needs a will, how to register one, and a checklist of assets and decisions to gather before meeting a planner.",
-    updated: "Updated 2026",
-  },
-  {
-    id: "legal-costs-budgeting",
-    title: "Budgeting for Legal Fees Without Surprises",
-    category: "Financial",
-    readingTime: "5 min read",
-    summary:
-      "How consultation fees, retainers, and fixed-fee stages work — and the questions to ask before engaging a lawyer.",
-    updated: "Updated 2026",
-  },
-];
+export interface ResourceFilters {
+  search?: string;
+  category?: string;
+  jurisdiction?: string;
+}
 
-export const resourceCategories: ResourceCategory[] = [
-  "Know Your Rights",
-  "Guides",
-  "Templates",
-  "Financial",
-];
+const resourceSelect = `
+  id,
+  category_id,
+  title,
+  slug,
+  summary,
+  content,
+  law_name,
+  section_reference,
+  jurisdiction,
+  keywords,
+  source_name,
+  source_url,
+  published,
+  created_at,
+  updated_at,
+  category:legal_resource_categories (
+    id,
+    name,
+    slug,
+    description,
+    created_at
+  )
+`;
+
+function cleanSearchTerms(value: string): string[] {
+  return value
+    .trim()
+    .replace(/[,%()]/g, " ")
+    .replace(/\s+/g, " ")
+    .slice(0, 100)
+    .split(" ")
+    .map((term) => term.trim().toLowerCase())
+    .filter((term) => term.length >= 2)
+    .slice(0, 8);
+}
+
+function cleanFilterValue(value?: string): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+
+
+
+export async function getResourceCategories(): Promise<ResourceCategory[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("legal_resource_categories")
+    .select("id, name, slug, description, created_at")
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(
+      `Failed to load resource categories: ${error.message}`,
+    );
+  }
+
+  return data ?? [];
+}
+
+export async function getResourceJurisdictions(): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("legal_resources")
+    .select("jurisdiction")
+    .eq("published", true);
+
+  if (error) {
+    throw new Error(
+      `Failed to load jurisdictions: ${error.message}`,
+    );
+  }
+
+  const jurisdictions = new Set(
+    (data ?? [])
+      .map((item) => item.jurisdiction)
+      .filter(
+        (jurisdiction): jurisdiction is string =>
+          typeof jurisdiction === "string" &&
+          jurisdiction.trim().length > 0,
+      ),
+  );
+
+  return Array.from(jurisdictions).sort();
+}
+
+export async function getPublishedResources(
+  filters: ResourceFilters = {},
+): Promise<LegalResource[]> {
+  const supabase = await createClient();
+
+  const categorySlug = cleanFilterValue(filters.category);
+  const jurisdiction = cleanFilterValue(filters.jurisdiction);
+  const search = cleanFilterValue(filters.search);
+
+  let categoryId: string | null = null;
+
+  /*
+   * IMPORTANT:
+   * The URL uses a category SLUG such as "family-law".
+   * The legal_resources.category_id column requires a UUID.
+   *
+   * So we ALWAYS convert:
+   *
+   * family-law
+   *      ↓
+   * category table
+   *      ↓
+   * UUID
+   *
+   * before filtering legal_resources.
+   */
+  if (categorySlug) {
+    const { data: category, error: categoryError } = await supabase
+      .from("legal_resource_categories")
+      .select("id")
+      .eq("slug", categorySlug)
+      .maybeSingle();
+
+    if (categoryError) {
+      throw new Error(
+        `Failed to resolve resource category: ${categoryError.message}`,
+      );
+    }
+
+    if (!category?.id) {
+      return [];
+    }
+
+    categoryId = category.id;
+
+   
+  }
+
+  let query = supabase
+    .from("legal_resources")
+    .select(resourceSelect)
+    .eq("published", true)
+    .order("updated_at", { ascending: false });
+
+  if (categoryId) {
+    query = query.eq("category_id", categoryId);
+  }
+
+  if (jurisdiction) {
+    query = query.eq("jurisdiction", jurisdiction);
+  }
+
+  const searchTerms = search ? cleanSearchTerms(search) : [];
+
+  if (searchTerms.length > 0) {
+    const searchConditions: string[] = [];
+
+    for (const term of searchTerms) {
+      searchConditions.push(`title.ilike.%${term}%`);
+      searchConditions.push(`summary.ilike.%${term}%`);
+      searchConditions.push(`law_name.ilike.%${term}%`);
+      searchConditions.push(`section_reference.ilike.%${term}%`);
+      searchConditions.push(`keywords.cs.{${term}}`);
+    }
+
+    query = query.or(searchConditions.join(","));
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(
+      `Failed to load legal resources: ${error.message}`,
+    );
+  }
+
+  return (data ?? []) as unknown as LegalResource[];
+}
+
+export async function getPublishedResourceBySlug(
+  slug: string,
+): Promise<LegalResource | null> {
+  const supabase = await createClient();
+
+  const cleanSlug = slug.trim();
+
+  const { data, error } = await supabase
+    .from("legal_resources")
+    .select(resourceSelect)
+    .eq("slug", cleanSlug)
+    .eq("published", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to load legal resource: ${error.message}`,
+    );
+  }
+
+  return data as unknown as LegalResource | null;
+}
+
+export async function getRelatedPublishedResources(
+  resource: LegalResource,
+  limit = 3,
+): Promise<LegalResource[]> {
+  const supabase = await createClient();
+
+ 
+
+  const { data, error } = await supabase
+    .from("legal_resources")
+    .select(resourceSelect)
+    .eq("published", true)
+    .eq("category_id", resource.category_id)
+    .neq("id", resource.id)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(
+      `Failed to load related legal resources: ${error.message}`,
+    );
+  }
+
+  return (data ?? []) as unknown as LegalResource[];
+}
