@@ -48,12 +48,25 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Button asChild variant="ghost" className="text-muted-foreground">
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/signup">Get started</Link>
-          </Button>
+          {pathname.startsWith("/citizen") ? (
+            <>
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-navy">
+                <Link href="/citizen/documents">My Documents</Link>
+              </Button>
+              <Button asChild size="sm" className="bg-navy text-white hover:bg-navy-light shadow-sm">
+                <Link href="/citizen/dashboard">Citizen Portal</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" className="text-muted-foreground">
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/signup">Get started</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="lg:hidden">
@@ -65,6 +78,8 @@ export function SiteHeader() {
 }
 
 function MobileNav({ pathname }: { pathname: string }) {
+  const isCitizen = pathname.startsWith("/citizen");
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -78,6 +93,40 @@ function MobileNav({ pathname }: { pathname: string }) {
           <Logo />
         </div>
         <nav className="flex flex-col gap-1 p-3" aria-label="Mobile">
+          {isCitizen && (
+            <div className="mb-2 rounded-lg border border-navy/15 bg-navy/5 p-2 text-xs font-semibold text-navy">
+              Citizen Portal
+              <div className="mt-1 flex flex-col gap-1 font-normal">
+                <Link
+                  href="/citizen/dashboard"
+                  className={cn(
+                    "rounded px-2 py-1 transition-colors",
+                    pathname === "/citizen/dashboard" ? "bg-navy text-white font-medium" : "text-navy hover:bg-navy/10"
+                  )}
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/citizen/documents"
+                  className={cn(
+                    "rounded px-2 py-1 transition-colors",
+                    pathname.startsWith("/citizen/documents") ? "bg-navy text-white font-medium" : "text-navy hover:bg-navy/10"
+                  )}
+                >
+                  My Documents
+                </Link>
+                <Link
+                  href="/citizen/profile"
+                  className={cn(
+                    "rounded px-2 py-1 transition-colors",
+                    pathname === "/citizen/profile" ? "bg-navy text-white font-medium" : "text-navy hover:bg-navy/10"
+                  )}
+                >
+                  My Profile
+                </Link>
+              </div>
+            </div>
+          )}
           {navLinks.map((link) => {
             const isActive =
               pathname === link.href ||
@@ -99,15 +148,23 @@ function MobileNav({ pathname }: { pathname: string }) {
           })}
         </nav>
         <div className="mt-auto flex flex-col gap-2 border-t border-border/70 p-4">
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button asChild className="w-full">
-            <Link href="/signup">
-              <Sparkles />
-              Get started
-            </Link>
-          </Button>
+          {isCitizen ? (
+            <Button asChild className="w-full bg-navy text-white hover:bg-navy-light">
+              <Link href="/citizen/dashboard">Go to Citizen Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button asChild className="w-full">
+                <Link href="/signup">
+                  <Sparkles />
+                  Get started
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
